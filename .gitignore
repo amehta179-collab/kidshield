@@ -5,3 +5,13 @@ node_modules/
 build/
 local.properties
 *.log
+
+# Binary tools (use Git LFS or download separately)
+tools/*.exe
+tools/*.bin
+
+# Android build outputs
+android-child-app/app/build/
+android-child-app/build/
+*.apk
+*.aab
