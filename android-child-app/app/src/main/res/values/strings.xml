@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">KidShield Child</string>
+    <string name="device_admin_label">KidShield Protection</string>
+    <string name="device_admin_description">Enables parental anti-uninstall security and remote bedtime lock protection.</string>
+</resources>

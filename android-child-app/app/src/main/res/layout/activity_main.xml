@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal"
+    android:background="#0F172A">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🛡️ KidShield Child"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginTop="32dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Companion Device Protection"
+        android:textSize="14sp"
+        android:textColor="#94A3B8"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Step 1: Usage Access -->
+    <Button
+        android:id="@+id/btnEnableUsage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="1. Grant Screen Time Access"
+        android:backgroundTint="#6366F1"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Step 2: Overlay Permission (Display over other apps) -->
+    <Button
+        android:id="@+id/btnEnableOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="2. Grant Display Over Other Apps"
+        android:backgroundTint="#6366F1"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Step 3: Device Admin -->
+    <Button
+        android:id="@+id/btnEnableAdmin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="3. Enable Device Admin (Security)"
+        android:backgroundTint="#4F46E5"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Step 4: GPS Location & Geofencing -->
+    <Button
+        android:id="@+id/btnEnableLocation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="4. Grant GPS &amp; Safe Zones Location"
+        android:backgroundTint="#6366F1"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Step 5: Start Protection -->
+    <Button
+        android:id="@+id/btnStartService"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="✓ Activate KidShield Protection"
+        android:backgroundTint="#10B981"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Google Play Family Policy Compliant • Transparent Active Protection"
+        android:textSize="11sp"
+        android:textColor="#64748B"
+        android:layout_marginTop="24dp"
+        android:textAlignment="center" />
+
+</LinearLayout>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <!-- Policy to lock the device remotely upon bedtime/quota exhaustion -->
+        <force-lock />
+        <!-- Watch login attempts to prevent unauthorized uninstall -->
+        <watch-login />
+    </uses-policies>
+</device-admin>

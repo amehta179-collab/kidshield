@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KidShield - Smart Parental Control & Child Safety</title>
+  <meta name="description" content="Next-Gen Parental Control Platform: Real-time Screen Time Management, App Blocker, Geofencing & GPS Tracking.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS for Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Main Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-theme">
+  <!-- Ambient Background Glows -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <!-- Main Container -->
+  <div class="app-layout">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand-container">
+        <div class="brand-icon">🛡️</div>
+        <div class="brand-text">
+          <h2>KidShield</h2>
+          <span class="badge-pro">PRO CONTROL</span>
+        </div>
+      </div>
+
+      <!-- Child Profile Selector -->
+      <div class="child-profile-card">
+        <div class="child-avatar" id="childAvatar">👦</div>
+        <div class="child-meta">
+          <h4 id="childNameDisplay">Aman</h4>
+          <span class="device-model" id="deviceModelDisplay">Galaxy S21 • <span class="status-dot online" id="statusDot"></span> <span id="statusText">Online</span></span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="overview">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </button>
+        <button class="nav-item" data-tab="apps">
+          <span class="nav-icon">⏳</span>
+          <span>App Limits & Lock</span>
+        </button>
+        <button class="nav-item" data-tab="location">
+          <span class="nav-icon">📍</span>
+          <span>Live GPS & Geofence</span>
+        </button>
+        <button class="nav-item" data-tab="webfilter">
+          <span class="nav-icon">🌐</span>
+          <span>Web & Content Safety</span>
+        </button>
+        <button class="nav-item" data-tab="simulator">
+          <span class="nav-icon">📱</span>
+          <span>Live Screen & Simulator</span>
+        </button>
+      </nav>
+
+      <!-- Instant Remote Lock Switch Box -->
+      <div class="remote-lock-box">
+        <div class="lock-header">
+          <div class="lock-title">
+            <span id="lockStateIcon">🔓</span>
+            <div>
+              <strong>Instant Lock</strong>
+              <p>Bedtime / Dinner</p>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="remoteLockToggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <p class="lock-status-note" id="lockStatusNote">Phone is currently unlocked</p>
+      </div>
+
+      <!-- Quick Siren Button -->
+      <button class="btn-siren" id="btnRingAlarm">
+        <span>🔔</span> Ring Device Siren
+      </button>
+
+      <!-- User Footnote -->
+      <div class="sidebar-footer">
+        <div class="compliance-badge">
+          <span class="shield-check">✓</span> Google Play Compliant
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <div class="page-title-area">
+          <h1 id="pageHeading">Dashboard Overview</h1>
+          <p class="subtitle" id="pageSubHeading">Real-time digital supervision & child well-being metrics</p>
+        </div>
+
+        <div class="top-actions">
+          <!-- Live Telemetry Quick Pills -->
+          <div class="stat-pill">
+            <span class="pill-icon">🔋</span>
+            <span id="batteryPill">84%</span>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-icon">⏱️</span>
+            <span id="screenTimePill">1h 27m / 2h</span>
+          </div>
+          <div class="stat-pill pulse-green">
+            <span class="pill-icon">🟢</span>
+            <span>Real-time Sync</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Notification Banner (SOS / Alerts) -->
+      <div class="alert-banner hidden" id="sosAlertBanner">
+        <div class="alert-content">
+          <span class="alert-icon">🚨</span>
+          <div>
+            <strong id="alertTitle">EMERGENCY SOS ALERT!</strong>
+            <p id="alertBody">Aman triggered an emergency alert near Central Park, New Delhi.</p>
+          </div>
+        </div>
+        <button class="btn-dismiss" id="dismissAlertBtn">Dismiss</button>
+      </div>
+
+      <!-- ================= TAB 1: OVERVIEW ================= -->
+      <section class="tab-pane active" id="pane-overview">
+        <!-- Metric Cards Grid -->
+        <div class="metrics-grid">
+          
+          <!-- Screen Time Card -->
+          <div class="glass-card stat-card">
+            <div class="card-header">
+              <span class="card-tag">Daily Screen Time</span>
+              <span class="card-icon-badge">⏱️</span>
+            </div>
+            <div class="metric-val">
+              <span class="big-number" id="screenTimeHours">1<span class="unit">h</span> 27<span class="unit">m</span></span>
+              <span class="metric-sub">Daily Quota: <strong>2 Hours</strong></span>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" id="screenTimeProgressBar" style="width: 72%;"></div>
+            </div>
+            <span class="progress-hint" id="screenTimeRemainingText">33 mins remaining today</span>
+          </div>
+
+          <!-- Current Activity Card -->
+          <div class="glass-card stat-card">
+            <div class="card-header">
+              <span class="card-tag">Active Foreground App</span>
+              <span class="card-icon-badge pulse">▶️</span>
+            </div>
+            <div class="metric-val">
+              <span class="big-number highlight" id="currentAppName">YouTube</span>
+              <span class="metric-sub">Category: <strong>Entertainment</strong></span>
+            </div>
+            <div class="current-app-pill">
+              <span>Used Today: <strong>38 mins</strong></span>
+              <span class="pill-badge-warning">Approaching Limit</span>
+            </div>
+          </div>
+
+          <!-- Safe Zone Status Card -->
+          <div class="glass-card stat-card">
+            <div class="card-header">
+              <span class="card-tag">Geofence Status</span>
+              <span class="card-icon-badge">🏡</span>
+            </div>
+            <div class="metric-val">
+              <span class="big-number green" id="geofenceStatusText">Inside Home</span>
+              <span class="metric-sub" id="lastLocationTime">Last updated: Just now</span>
+            </div>
+            <div class="location-brief">
+              <span class="pin-icon">📍</span>
+              <span id="overviewAddress">Bhorja, Nankhari, Shimla, Himachal Pradesh</span>
+            </div>
+          </div>
+
+          <!-- Device Health Card -->
+          <div class="glass-card stat-card">
+            <div class="card-header">
+              <span class="card-tag">Device Security</span>
+              <span class="card-icon-badge">🛡️</span>
+            </div>
+            <div class="metric-val">
+              <span class="big-number" id="deviceProtectionStatus">Protected</span>
+              <span class="metric-sub">Device Admin: <strong>Active</strong></span>
+            </div>
+            <div class="protection-checks">
+              <span class="badge-success">✓ Anti-Uninstall</span>
+              <span class="badge-success">✓ Local DNS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle Section: App Breakdown & Live Activity -->
+        <div class="dashboard-grid-2">
+          
+          <!-- Today's Top Apps -->
+          <div class="glass-card">
+            <div class="section-card-title">
+              <h3>📱 Today's App Breakdown</h3>
+              <button class="btn-text" id="viewAllAppsBtn">Manage Limits &rarr;</button>
+            </div>
+            <div class="app-usage-list" id="overviewAppList">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Activity Timeline -->
+          <div class="glass-card">
+            <div class="section-card-title">
+              <h3>⚡ Recent Activity Feed</h3>
+              <span class="live-pill">Live Feed</span>
+            </div>
+            <div class="timeline-feed" id="activityTimeline">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: APP LIMITS & LOCK ================= -->
+      <section class="tab-pane" id="pane-apps">
+        <div class="glass-card mb-4">
+          <div class="section-card-title">
+            <div>
+              <h3>Daily Screen Time Limit (Total Device Quota)</h3>
+              <p class="section-desc">Once this daily limit is exhausted, the child's phone screen automatically locks.</p>
+            </div>
+            <div class="daily-limit-badge">
+              <span id="dailyLimitLabel">120 Minutes (2h 00m)</span>
+            </div>
+          </div>
+          <div class="slider-row">
+            <span>30m</span>
+            <input type="range" id="dailyLimitSlider" min="30" max="360" step="15" value="120">
+            <span>6 Hours</span>
+          </div>
+          <div class="mt-2 text-right">
+            <button class="btn-primary" id="saveDailyLimitBtn">Save Daily Limit</button>
+          </div>
+        </div>
+
+        <!-- Per-App Management Grid -->
+        <div class="glass-card">
+          <div class="section-card-title">
+            <div>
+              <h3>Per-App Restriction & Timers</h3>
+              <p class="section-desc">Set specific daily minute limits or permanently block addictive games & social networks.</p>
+            </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0; gap: 14px;">
+            <input type="text" id="searchAppsInput" placeholder="🔍 Search installed apps (e.g. WhatsApp, YouTube, Chrome, Games)..." style="flex: 1; max-width: 450px; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); border-radius: 8px; color: white; font-size: 13px;">
+            <span id="totalAppsCountBadge" style="font-size: 12px; font-weight: 600; color: #818cf8; background: rgba(99, 102, 241, 0.15); padding: 6px 14px; border-radius: 12px;">Scanning device apps...</span>
+          </div>
+
+          <div class="apps-management-table" id="appsManagementTable">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: LIVE GPS & GEOFENCING ================= -->
+      <section class="tab-pane" id="pane-location">
+        <div class="dashboard-grid-map">
+          
+          <!-- Map Container -->
+          <div class="glass-card map-card">
+            <div class="map-controls-bar">
+              <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <h3>Live GPS Location Tracker</h3>
+                  <span class="live-pill" style="font-size: 11px;">📡 Hardware GNSS Active</span>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 6px;">
+                  <span class="map-status" id="mapCoordinates">Lat: 31.3051, Lng: 77.5830 (Accuracy: ±3.8m)</span>
+                  <span id="mapAddressText" style="font-size: 13px; color: #cbd5e1;">📍 <strong id="mapAddressVal">Bhorja, Nankhari, Shimla, HP</strong></span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-primary" id="btnRefreshLocation">
+                  <span>🔄</span> Refresh GPS Coordinates
+                </button>
+              </div>
+            </div>
+            <div id="map"></div>
+          </div>
+
+          <!-- Geofence Zones List -->
+          <div class="glass-card">
+            <div class="section-card-title">
+              <h3>Safe Zones (Geofencing)</h3>
+            </div>
+            <p class="section-desc">Receive instant push notifications whenever your child arrives or leaves these safe zones.</p>
+            
+            <div class="geofence-list" id="geofenceList">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- Add Geofence Button -->
+            <div class="mt-4">
+              <button class="btn-outline w-100" id="btnAddZone">
+                <span>➕</span> Add New Safe Zone
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================= TAB 4: WEB & CONTENT FILTER ================= -->
+      <section class="tab-pane" id="pane-webfilter">
+        <div class="glass-card mb-4">
+          <div class="section-card-title">
+            <div>
+              <h3>Smart DNS Web Filtering</h3>
+              <p class="section-desc">Powered by on-device local DNS inspection. Blocks inappropriate web traffic across Chrome, browsers, and in Incognito mode.</p>
+            </div>
+          </div>
+
+          <div class="toggle-cards-grid">
+            <div class="toggle-card">
+              <div class="toggle-card-info">
+                <span class="toggle-icon">🔞</span>
+                <div>
+                  <strong>Adult & Explicit Content</strong>
+                  <p>Blocks adult websites, gambling, violence, and malicious domains.</p>
+                </div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggleAdultSites" checked>
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="toggle-card">
+              <div class="toggle-card-info">
+                <span class="toggle-icon">🔍</span>
+                <div>
+                  <strong>Enforce Google SafeSearch</strong>
+                  <p>Locks Google, Bing, and YouTube into strict SafeSearch filtering.</p>
+                </div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggleSafeSearch" checked>
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="toggle-card">
+              <div class="toggle-card-info">
+                <span class="toggle-icon">🎰</span>
+                <div>
+                  <strong>Gambling & Betting Apps</strong>
+                  <p>Restricts access to online betting, lottery, and high-risk financial sites.</p>
+                </div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggleGambling" checked>
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Blacklist -->
+        <div class="glass-card">
+          <div class="section-card-title">
+            <div>
+              <h3>Custom Blocked Websites</h3>
+              <p class="section-desc">Add specific website URLs that will be blocked instantly on the child's phone.</p>
+            </div>
+          </div>
+
+          <div class="add-domain-row">
+            <input type="text" id="newBlockDomainInput" placeholder="e.g. reddit.com or discord.com">
+            <button class="btn-primary" id="btnAddDomainBtn">Block Website</button>
+          </div>
+
+          <div class="domain-tag-list" id="blockedDomainsList">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 5: LIVE SCREEN & SIMULATOR ================= -->
+      <section class="tab-pane" id="pane-simulator">
+        <div class="glass-card">
+          <div class="section-card-title">
+            <div>
+              <h3>🔴 Live Child Screen Mirror & Control Lab</h3>
+              <p class="section-desc">Real-time live screen viewing & controls for child device (Aman - Realme RMX1992). View exactly what your child is doing on their phone screen in real time.</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="badge-live-pulse" id="liveMirrorBadge"><span class="pulse-dot"></span> LIVE MIRROR</span>
+              <span class="badge-simulator">PRO MONITOR</span>
+            </div>
+          </div>
+
+          <!-- Master Live Monitoring Control Card -->
+          <div class="live-monitoring-toggle-bar">
+            <div class="lm-toggle-left">
+              <div class="lm-toggle-icon" id="lmToggleIcon">📡</div>
+              <div class="lm-toggle-text">
+                <div class="lm-toggle-title-row">
+                  <h4>Live Screen Monitoring</h4>
+                  <span class="lm-status-chip on" id="lmStatusChip">● STREAMING LIVE</span>
+                </div>
+                <p id="lmStatusSubtitle">Real-time screen capture from child device (Realme X2) is active.</p>
+              </div>
+            </div>
+            <div class="lm-toggle-right">
+              <span class="lm-switch-label" id="lmSwitchLabel">LIVE MONITORING:</span>
+              <label class="switch switch-lg">
+                <input type="checkbox" id="toggleLiveMonitoringMaster" checked>
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- View Mode Switcher -->
+          <div class="mirror-mode-tabs">
+            <button class="btn-mode-tab active" id="tabModeLiveMirror">
+              <span>📱</span> Real Device Live Screen (Mirroring)
+            </button>
+            <button class="btn-mode-tab" id="tabModeVirtualSim">
+              <span>🧪</span> Virtual Test Lab (Simulation)
+            </button>
+          </div>
+
+          <div class="simulator-grid">
+            
+            <!-- Child Phone Preview (Real Mirror + Virtual) -->
+            <div class="phone-column">
+              <div class="phone-mockup">
+                <div class="phone-notch"></div>
+                <div class="phone-screen" id="virtualPhoneScreen">
+                  
+                  <!-- MODE A: REAL LIVE DEVICE SCREEN IMAGE -->
+                  <div class="live-device-screen-container" id="liveDeviceScreenContainer">
+                    <!-- Remote Control Overlay (captures clicks for tap) -->
+                    <div class="remote-control-overlay" id="remoteControlOverlay" title="Click anywhere to tap on child phone">
+                      <div class="rco-ripple" id="rcoRipple"></div>
+                    </div>
+                    <img id="liveDeviceScreenImg" src="/api/devices/child_01/screen" alt="Realme Phone Screen" class="live-device-screen-img" />
+                    <div class="screen-overlay-tag" id="liveScreenOverlayTag">
+                      <span class="pulse-dot"></span> Real Device • Live
+                    </div>
+
+                    <!-- Paused / Standby Privacy Overlay -->
+                    <div class="screen-monitoring-paused-overlay hidden" id="screenMonitoringPausedOverlay">
+                      <div class="paused-shield-icon">🛡️</div>
+                      <h3>Live Monitoring Off</h3>
+                      <p>Screen mirroring is temporarily turned off to respect child privacy and save battery.</p>
+                      <button class="btn-resume-live-view" id="btnResumeLiveView">
+                        <span>▶️</span> Turn On Live Monitoring
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- MODE B: VIRTUAL SIMULATOR (HIDDEN WHEN IN LIVE MIRROR) -->
+                  <div class="virtual-sim-container hidden" id="virtualSimContainer">
+                    <!-- Phone Status Bar -->
+                    <div class="phone-status-bar">
+                      <span id="virtualClock">12:50 PM</span>
+                      <div class="phone-icons">
+                        <span>📶</span>
+                        <span>🔋 <span id="virtualBatteryText">62%</span></span>
+                      </div>
+                    </div>
+
+                    <!-- Phone Lock Overlay (If locked) -->
+                    <div class="phone-lock-overlay hidden" id="virtualPhoneLockOverlay">
+                      <div class="lock-icon-huge">🔒</div>
+                      <h3>Device Locked</h3>
+                      <p id="virtualLockReason">App or Device Locked by Parent</p>
+                      <div class="emergency-call-only">Emergency Calls Only (112)</div>
+                    </div>
+
+                    <!-- Phone Normal Content -->
+                    <div class="phone-active-app" id="virtualActiveAppArea">
+                      <div class="app-header-bar">
+                        <span id="virtualAppIcon">▶️</span>
+                        <span id="virtualAppName">YouTube</span>
+                      </div>
+                      <div class="app-dummy-body">
+                        <div class="dummy-video-box"></div>
+                        <div class="dummy-line w-80"></div>
+                        <div class="dummy-line w-60"></div>
+                      </div>
+                      <div class="app-persistent-notification">
+                        <span>🛡️ KidShield: Device Protected</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Android Remote Navigation Bar -->
+              <div class="android-nav-bar" id="androidNavBar">
+                <button class="nav-btn" id="rcBtnBack" title="Back">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <button class="nav-btn nav-btn-home" id="rcBtnHome" title="Home">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+                </button>
+                <button class="nav-btn" id="rcBtnRecents" title="Recent Apps">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                </button>
+              </div>
+
+              <!-- Remote Control Mode Toggle + Keyboard Row -->
+              <div class="remote-control-bar" id="remoteControlBar">
+                <div class="rc-bar-left">
+                  <label class="rc-toggle-label">
+                    <input type="checkbox" id="toggleRemoteControl" checked>
+                    <span class="rc-slider"></span>
+                  </label>
+                  <span id="rcModeLabel" style="font-size:12px; color: #34d399; font-weight:600;">🖱️ Remote Control: ON</span>
+                </div>
+                <div class="rc-bar-right">
+                  <button class="rc-btn" id="rcBtnVolUp" title="Volume Up">🔊</button>
+                  <button class="rc-btn" id="rcBtnVolDown" title="Volume Down">🔉</button>
+                  <button class="rc-btn" id="rcBtnScreenshot" title="Take Screenshot">📷</button>
+                  <button class="rc-btn rc-btn-keyboard" id="rcBtnKeyboard" title="Show/Hide Keyboard">⌨️</button>
+                </div>
+              </div>
+
+              <!-- Remote Keyboard Input Bar -->
+              <div class="rc-keyboard-bar hidden" id="rcKeyboardBar">
+                <input type="text" id="rcTypeInput" placeholder="Type here → sends text to child phone..." class="rc-type-input">
+                <button class="btn-primary" id="rcBtnSendText" style="padding: 8px 14px; font-size: 12px;">Send ↵</button>
+                <button class="rc-btn" id="rcBtnDelete" title="Backspace">⌫</button>
+                <button class="rc-btn" id="rcBtnEnter" title="Enter">↵</button>
+              </div>
+
+              <!-- Phone Controls Bar -->
+              <div class="phone-mirror-actions">
+                <button class="btn-phone-action" id="btnRefreshScreen" title="Take immediate snapshot">
+                  <span>🔄</span> Refresh Screen
+                </button>
+                <button class="btn-phone-action btn-stream-active" id="btnToggleAutoStream" title="Toggle automatic stream">
+                  <span id="streamPlayIcon">⚡</span> <span id="streamStatusText">Auto-Stream: ON</span>
+                </button>
+                <button class="btn-phone-action" id="btnWakeScreen" title="Wake up phone screen">
+                  <span>💡</span> Wake Phone
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Controls: Live Telemetry & Quick Parent Actions -->
+            <div class="simulation-controls">
+              
+              <!-- Live Activity Insight Card -->
+              <div class="live-activity-card">
+                <div class="live-activity-header">
+                  <h4>📱 Real Child Activity:</h4>
+                  <span class="badge-status-online">CONNECTED</span>
+                </div>
+                <div class="activity-details-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">Current Active App:</span>
+                    <span class="detail-value highlight-app" id="liveCurrentAppName">▶️ YouTube Studio</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Battery Level:</span>
+                    <span class="detail-value" id="liveBatteryValue">🔋 62% (Charging)</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Screen Time Today:</span>
+                    <span class="detail-value" id="liveScreenTimeValue">⏱️ 11h 24m</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">App Restriction:</span>
+                    <span class="detail-value text-success" id="liveRestrictionStatus">Active Protection</span>
+                  </div>
+                </div>
+
+                <!-- Instant Controls on Live Phone -->
+                <div class="quick-parent-actions">
+                  <button class="btn-quick-action btn-qa-danger" id="btnQuickLock">
+                    <span>🔒</span> Instant Screen Lock
+                  </button>
+                  <button class="btn-quick-action btn-qa-warning" id="btnQuickSiren">
+                    <span>🔔</span> Ring Siren Alarm
+                  </button>
+                  <button class="btn-quick-action btn-qa-info" id="btnQuickBlockYoutube">
+                    <span>🚫</span> Toggle YouTube Block
+                  </button>
+                </div>
+              </div>
+
+              <!-- Collapsible Simulated Lab Controls -->
+              <div class="test-lab-section">
+                <h4>🧪 Test Lab Triggers:</h4>
+                <div class="sim-btn-group">
+                  <button class="btn-sim" id="simOpenRoblox">
+                    <span>🎮</span> Open Roblox Game
+                  </button>
+                  <button class="btn-sim" id="simOpenInstagram">
+                    <span>📸</span> Open Instagram (Blocked)
+                  </button>
+                  <button class="btn-sim" id="simMoveToSchool">
+                    <span>🏫</span> Travel to School (GPS)
+                  </button>
+                  <button class="btn-sim" id="simMoveToHome">
+                    <span>🏡</span> Return to Home (GPS)
+                  </button>
+                  <button class="btn-sim btn-sim-danger" id="simTriggerSos">
+                    <span>🚨</span> Child Presses SOS Panic Button
+                  </button>
+                  <button class="btn-sim" id="simBatteryLow">
+                    <span>🪫</span> Drop Battery to 12%
+                  </button>
+                </div>
+
+                <div class="sim-log-box">
+                  <strong>Activity & Supervision Event Log:</strong>
+                  <div class="sim-log-content" id="simLogContent">
+                    [Real Device] Screen Mirror Stream initialized...<br>
+                    [Worker] UsageStatsManager tracking active window...<br>
+                    [Worker] FusedLocationProviderClient pinged coordinates...
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Modal: Add New Safe Zone -->
+  <div class="modal-backdrop hidden" id="modalAddSafeZone">
+    <div class="modal-card glass-card" style="width: 100%; max-width: 440px; padding: 24px; border: 1px solid var(--border-glass); border-radius: 16px; background: rgba(15, 23, 42, 0.95); box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 18px; margin: 0; color: white;">➕ Add New Safe Zone</h3>
+        <button id="btnCloseZoneModal" style="background: none; border: none; font-size: 22px; color: #94a3b8; cursor: pointer;">&times;</button>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">Create a geofence boundary to receive instant alerts whenever your child enters or exits.</p>
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 12px; color: #cbd5e1; display: block; margin-bottom: 6px;">Zone Name</label>
+        <input type="text" id="inputZoneName" placeholder="e.g. Grandma's House, Tuition Class, Park" style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); border-radius: 8px; color: white; font-size: 13px;">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div>
+          <label style="font-size: 12px; color: #cbd5e1; display: block; margin-bottom: 6px;">Latitude</label>
+          <input type="number" step="0.0001" id="inputZoneLat" placeholder="31.3051" style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); border-radius: 8px; color: white; font-size: 13px;">
+        </div>
+        <div>
+          <label style="font-size: 12px; color: #cbd5e1; display: block; margin-bottom: 6px;">Longitude</label>
+          <input type="number" step="0.0001" id="inputZoneLng" placeholder="77.5830" style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass); border-radius: 8px; color: white; font-size: 13px;">
+        </div>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <label style="font-size: 12px; color: #cbd5e1;">Radius: <strong id="zoneRadiusVal" style="color: #818cf8;">300</strong> meters</label>
+          <button class="btn-text" id="btnUseCurrentCoord" style="font-size: 11px; color: #818cf8; cursor: pointer; border: none; background: none;">📍 Use Child Location</button>
+        </div>
+        <input type="range" id="inputZoneRadius" min="100" max="2000" step="50" value="300" style="width: 100%;">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-secondary" id="btnCancelZone">Cancel</button>
+        <button class="btn-primary" id="btnSaveZone">Save Safe Zone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- App JS -->
+  <script src="js/app.js"></script>
+</body>
+</html>
