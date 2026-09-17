@@ -76,10 +76,37 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
 // Connected WebSocket Clients
-// map of ws -> { type: 'dashboard' | 'child', deviceId?: string }
+// map of ws -> { type: 'dashboard' | 'child' | 'child_control', deviceId?: string }
 const clients = new Map();
 
-wss.on('connection', (ws) => {
+// Map of deviceId -> child control WebSocket (for forwarding remote control commands)
+const childControlSockets = new Map();
+
+// Latest screen frame pushed from child app (wireless mode)
+let lastAppScreenBuffer = null;
+let lastAppScreenTime   = 0;
+
+wss.on('connection', (ws, req) => {
+  // Parse query params to detect child_control connections from AccessibilityService
+  const urlParams = new URLSearchParams(req.url?.split('?')[1] || '');
+  const connType  = urlParams.get('type');
+  const connDevId = urlParams.get('deviceId');
+
+  if (connType === 'child_control' && connDevId) {
+    clients.set(ws, { type: 'child_control', deviceId: connDevId });
+    childControlSockets.set(connDevId, ws);
+    console.log(`[KidShield Remote] Child control receiver connected: ${connDevId}`);
+
+    ws.on('close', () => {
+      clients.delete(ws);
+      if (childControlSockets.get(connDevId) === ws) {
+        childControlSockets.delete(connDevId);
+        console.log(`[KidShield Remote] Child control receiver disconnected: ${connDevId}`);
+      }
+    });
+    return;
+  }
+
   clients.set(ws, { type: 'unknown' });
 
   ws.on('message', (message) => {
@@ -95,6 +122,36 @@ wss.on('connection', (ws) => {
     clients.delete(ws);
   });
 });
+
+// ─── Wireless Screen Push (from Android app MediaProjection) ──────────────────
+// App POSTs JPEG frames here instead of ADB screencap
+app.post('/api/devices/:id/screen-push', (req, res) => {
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    const imgBuffer = Buffer.concat(chunks);
+    if (imgBuffer.length > 0) {
+      lastAppScreenBuffer = imgBuffer;
+      lastAppScreenTime   = Date.now();
+      console.log(`[KidShield Wireless] Received screen frame from app: ${imgBuffer.length} bytes`);
+    }
+    res.json({ success: true });
+  });
+  req.on('error', () => res.status(500).json({ success: false }));
+});
+
+// ─── Wireless Remote Control Forwarder ───────────────────────────────────────
+// Dashboard sends tap/swipe/key -> server forwards to AccessibilityService via WS
+function forwardRemoteControlToApp(deviceId, action, payload) {
+  const controlWs = childControlSockets.get(deviceId);
+  if (controlWs && controlWs.readyState === 1) {
+    const msg = JSON.stringify({ type: 'REMOTE_CONTROL', action, payload });
+    controlWs.send(msg);
+    console.log(`[KidShield Remote] Forwarded ${action} to child app: ${deviceId}`);
+    return true;
+  }
+  return false; // Child not connected wirelessly, fall back to ADB
+}
 
 // Haversine formula to compute accurate distance between two coordinates in meters
 function getDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -326,10 +383,22 @@ try {
 
 app.get('/api/devices/:id/screen', (req, res) => {
   const now = Date.now();
-  // Return cached frame if captured within 600ms to keep stream snappy without overloading ADB
+
+  // ── WIRELESS MODE (app pushed frame via MediaProjection) ──
+  // If we received a frame from the Android app in the last 4 seconds, use it
+  if (lastAppScreenBuffer && (now - lastAppScreenTime < 4000)) {
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('X-Screen-Source', 'wireless');
+    return res.send(lastAppScreenBuffer);
+  }
+
+  // ── ADB FALLBACK MODE (USB/USB-WiFi ADB still connected) ──
+  // Return cached ADB frame if captured within 600ms
   if (lastScreenBuffer && (now - lastScreenTime < 600)) {
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('X-Screen-Source', 'adb-cached');
     return res.send(lastScreenBuffer);
   }
 
@@ -344,6 +413,12 @@ app.get('/api/devices/:id/screen', (req, res) => {
     isScreenCapturing = false;
     if (err || !stdout || stdout.length < 500) {
       console.warn('[KidShield Screen] Exec-out error:', err ? err.message : 'Empty stdout', 'stderr:', stderr ? stderr.toString() : '');
+      // If ADB fails but we have any old wireless frame, return it
+      if (lastAppScreenBuffer) {
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('X-Screen-Source', 'wireless-stale');
+        return res.send(lastAppScreenBuffer);
+      }
       if (lastScreenBuffer) {
         res.setHeader('Content-Type', 'image/png');
         return res.send(lastScreenBuffer);
@@ -351,11 +426,12 @@ app.get('/api/devices/:id/screen', (req, res) => {
       return res.status(500).json({ error: 'Screencap failed: ' + (err ? err.message : 'Empty stream') });
     }
 
-    console.log(`[KidShield Screen] Captured live screen frame: ${stdout.length} bytes`);
+    console.log(`[KidShield Screen] ADB captured screen frame: ${stdout.length} bytes`);
     lastScreenBuffer = stdout;
     lastScreenTime = Date.now();
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('X-Screen-Source', 'adb');
     res.send(lastScreenBuffer);
   });
 });
@@ -371,36 +447,54 @@ app.post('/api/devices/:id/wake', (req, res) => {
 // ─── REMOTE CONTROL ENDPOINTS ─────────────────────────────────────────────────
 
 // Remote Tap (Click-to-Tap on phone screen)
-// Accepts normalized coords (0.0–1.0) and converts to real device resolution
+// Wireless: forwards to AccessibilityService. Fallback: ADB
 app.post('/api/devices/:id/tap', (req, res) => {
   const { x, y, deviceWidth = 1080, deviceHeight = 2340 } = req.body;
   if (x === undefined || y === undefined) {
     return res.status(400).json({ success: false, error: 'x and y coordinates required' });
   }
+  const deviceId = req.params.id;
+  console.log(`[KidShield Remote] TAP at (${x}, ${y}) normalized`);
+
+  // Try wireless first
+  const wirelessOk = forwardRemoteControlToApp(deviceId, 'TAP', { x: parseFloat(x), y: parseFloat(y) });
+  if (wirelessOk) {
+    return res.json({ success: true, action: 'tap', mode: 'wireless', x, y });
+  }
+
+  // ADB fallback
   const realX = Math.round(parseFloat(x) * deviceWidth);
   const realY = Math.round(parseFloat(y) * deviceHeight);
-  console.log(`[KidShield Remote] TAP at (${realX}, ${realY})`);
   execFile(ADB_PATH, ['shell', 'input', 'tap', String(realX), String(realY)], { timeout: 3000 }, (err) => {
     if (err) return res.status(500).json({ success: false, error: err.message });
-    res.json({ success: true, action: 'tap', x: realX, y: realY });
+    res.json({ success: true, action: 'tap', mode: 'adb', x: realX, y: realY });
   });
 });
 
-// Remote Swipe / Scroll
+// Remote Swipe / Scroll — wireless first, ADB fallback
 app.post('/api/devices/:id/swipe', (req, res) => {
   const { x1, y1, x2, y2, duration = 300, deviceWidth = 1080, deviceHeight = 2340 } = req.body;
+  const deviceId = req.params.id;
+  console.log(`[KidShield Remote] SWIPE (${x1},${y1}) -> (${x2},${y2}) ${duration}ms`);
+
+  const wirelessOk = forwardRemoteControlToApp(deviceId, 'SWIPE', {
+    x1: parseFloat(x1), y1: parseFloat(y1),
+    x2: parseFloat(x2), y2: parseFloat(y2),
+    duration: parseInt(duration)
+  });
+  if (wirelessOk) return res.json({ success: true, action: 'swipe', mode: 'wireless' });
+
   const rx1 = Math.round(parseFloat(x1) * deviceWidth);
   const ry1 = Math.round(parseFloat(y1) * deviceHeight);
   const rx2 = Math.round(parseFloat(x2) * deviceWidth);
   const ry2 = Math.round(parseFloat(y2) * deviceHeight);
-  console.log(`[KidShield Remote] SWIPE (${rx1},${ry1}) -> (${rx2},${ry2}) ${duration}ms`);
   execFile(ADB_PATH, ['shell', 'input', 'swipe', String(rx1), String(ry1), String(rx2), String(ry2), String(duration)], { timeout: 5000 }, (err) => {
     if (err) return res.status(500).json({ success: false, error: err.message });
-    res.json({ success: true, action: 'swipe' });
+    res.json({ success: true, action: 'swipe', mode: 'adb' });
   });
 });
 
-// Remote Hardware Key (Back, Home, Recents, Volume, Power)
+// Remote Hardware Key — wireless first, ADB fallback
 app.post('/api/devices/:id/keyevent', (req, res) => {
   const ALLOWED_KEYS = {
     'BACK':        '4',
@@ -415,12 +509,17 @@ app.post('/api/devices/:id/keyevent', (req, res) => {
     'SCREENSHOT':  '120'
   };
   const { key } = req.body;
+  const deviceId = req.params.id;
   const keycode = ALLOWED_KEYS[key?.toUpperCase()];
   if (!keycode) return res.status(400).json({ success: false, error: `Unknown key: ${key}. Allowed: ${Object.keys(ALLOWED_KEYS).join(', ')}` });
   console.log(`[KidShield Remote] KEY: ${key} (${keycode})`);
+
+  const wirelessOk = forwardRemoteControlToApp(deviceId, 'KEYEVENT', { key: key.toUpperCase() });
+  if (wirelessOk) return res.json({ success: true, action: 'keyevent', key, mode: 'wireless' });
+
   execFile(ADB_PATH, ['shell', 'input', 'keyevent', keycode], { timeout: 3000 }, (err) => {
     if (err) return res.status(500).json({ success: false, error: err.message });
-    res.json({ success: true, action: 'keyevent', key, keycode });
+    res.json({ success: true, action: 'keyevent', key, keycode, mode: 'adb' });
   });
 });
 

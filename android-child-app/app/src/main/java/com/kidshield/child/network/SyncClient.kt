@@ -1,6 +1,7 @@
 package com.kidshield.child.network
 
 import android.util.Log
+import com.kidshield.child.services.KidShieldConfig
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -25,15 +26,9 @@ class SyncClient(
     private var onCommandCallback: ((command: String, payload: JSONObject) -> Unit)? = null
     private var cachedRegistrationPayload: JSONObject? = null
 
-    // Candidate URLs for Wi-Fi and USB reverse
-    private val candidateWsUrls = listOf(
-        "ws://192.168.1.3:4000/ws",
-        "ws://127.0.0.1:4000/ws"
-    )
-    private val candidateHttpUrls = listOf(
-        "http://192.168.1.3:4000/api/devices/$deviceId/sync",
-        "http://127.0.0.1:4000/api/devices/$deviceId/sync"
-    )
+    // Cloud server URLs — uses KidShieldConfig (update SERVER_BASE_URL there)
+    private val candidateWsUrls  = listOf(KidShieldConfig.SERVER_WS_URL  + "/ws")
+    private val candidateHttpUrls = listOf(KidShieldConfig.SERVER_HTTP_URL + "/api/devices/$deviceId/sync")
 
     private var activeWsIndex = 0
     private var activeHttpIndex = 0
